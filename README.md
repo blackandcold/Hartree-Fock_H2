@@ -1,2 +1,3 @@
 # Hartree-Fock_H2
-Exercise for Elecronic Structures of Materials Uni Vienna: Hartree-Fock for H2 molecule
+Exercise for "Electronic Structures of Materials" summer term 2017 University Vienna:
+## Hartree-Fock for H2 molecule
