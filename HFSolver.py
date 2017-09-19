@@ -5,22 +5,22 @@ from scipy.linalg import eigh, eig
 
 
 class HFSolver:
-    dt = np.float64
+    dt = float
 
     def __init__(self, base, nucleiPositions, numberOfElectrons,  breakValue=1e-8, maximumIterations = 400):
         self.base = base
         self.numberOfElectrons = numberOfElectrons
         self.nucleiPositions = nucleiPositions
-        self.breakValue = np.float64(breakValue)
+        self.breakValue = (breakValue)
         self.maximumIterations = maximumIterations
 
     def CalculateNuclearRepulsion(self, R_AB):
-        return np.float64(1*1./R_AB)  # Z_n is 1, it only depends on R_AB
+        return (1*1./R_AB)  # Z_n is 1, it only depends on R_AB
 
     def CalculateTotalEnergy(self, eigenValues, R_AB, rho, simpleHamiltonian):
-        totalE = np.float64(0)
+        totalE = 0.
 
-        totalE = np.sum(rho.transpose() * simpleHamiltonian)  # 1/2 * 2 * h_rs * P_rs
+        totalE = sum(rho.transpose() * simpleHamiltonian)  # 1/2 * 2 * h_rs * P_rs
 
         for i in range(self.numberOfElectrons):
             totalE += 0.5 * eigenValues[i/2]  # i/2 is always 0 here for H2 since we only take half the electrons into account (Angabe!)
@@ -30,7 +30,7 @@ class HFSolver:
     def SolveGeneralEigensystem(self, fockMatrix, overlapMatrix):
         eigenValues, eigenVectors = eigh(fockMatrix, overlapMatrix)  # generalized eigenvalue problem of symmetic matrices, "eig" only works for one input!
         eigenValues = eigenValues[:2]
-        return eigenValues, eigenVectors[:, :2]
+        return (eigenValues, eigenVectors[:,:2])
 
     def CalcualteTwoEIntegral(self, overlapMatrix, R_AB):
         Qpqrs = np.zeros((len(self.base), len(self.base), len(self.base), len(self.base)), dtype=float)
@@ -42,7 +42,7 @@ class HFSolver:
                         R_rs = 0.5 * R_AB * ((self.nucleiPositions[q]) * alphaQ + (self.nucleiPositions[s]) * alphaS) / (alphaQ + alphaS)
                         alphaPQRS = (alphaP + alphaR) * (alphaQ + alphaS) / ((alphaP + alphaR) + (alphaQ + alphaS))
                         #  division by np.sqrt(np.pi) because twice the overlap is pi**6/2 but two electron only has pi**5/2
-                        Qpqrs[p, q, r, s] = 2 / np.sqrt(np.pi) * np.sqrt(alphaPQRS) * overlapMatrix[p, r] * overlapMatrix[q, s] * self.F0(alphaPQRS * (R_pq - R_rs) ** 2)
+                        Qpqrs[p, q, r, s] = 2 / sqrt(np.pi) * sqrt(alphaPQRS) * overlapMatrix[p, r] * overlapMatrix[q, s] * self.F0(alphaPQRS * (R_pq - R_rs) ** 2)
         return Qpqrs
 
     def CalculateFockMatrix(self, simpleHamiltonian, Qpqrs, rho):
@@ -67,15 +67,15 @@ class HFSolver:
         if abs(q) < 1e-18:  # due to "ValueError: array must not contain infs or NaNs", getting so small that it is interpreted as 0
             return 1.0
         q = np.sqrt(q)
-        return np.sqrt(np.pi)/2 * math.erf(q) / q
+        return sqrt(np.pi)/2 * math.erf(q) / q
 
     def CalculateOverlapMatrix(self, R_AB):
         overlapMatrix = np.zeros((len(self.base), len(self.base)), dtype=self.dt)
         for p, alphaP in enumerate(self.base):
             for q, alphaQ in enumerate(self.base):
-                overlapMatrix[p][q] = np.pi/(alphaP+alphaQ)**(3/2.) * math.exp(-R_AB ** 2 * (alphaP * alphaQ) / (alphaP + alphaQ))
-                #if self.nucleiPositions[p] != self.nucleiPositions[q]:
-                 #   overlapMatrix[p][q] *= np.exp(-R_AB**2 * (alphaP * alphaQ)/(alphaP + alphaQ))
+                overlapMatrix[p][q] = (pi/(alphaP+alphaQ))**(3/2.)
+                if self.nucleiPositions[p] != self.nucleiPositions[q]:
+                    overlapMatrix[p][q] *= exp(-R_AB**2 * (alphaP * alphaQ)/(alphaP + alphaQ))
 
         return overlapMatrix
 
@@ -84,12 +84,12 @@ class HFSolver:
         for p, alphaP in enumerate(self.base):
             for q, alphaQ in enumerate(self.base):
                 alphaPQ = (alphaP * alphaQ) / (alphaP + alphaQ)
-                R_pq = 1/2. * R_AB * (self.nucleiPositions[p] * alphaP + self.nucleiPositions[q] * alphaQ) / (alphaP + alphaQ)
+                R_pq = 0.5 * R_AB * (self.nucleiPositions[p] * alphaP + self.nucleiPositions[q] * alphaQ) / (alphaP + alphaQ)
 
                 # Kinetic term part
                 simpleHamiltonian[p][q] = 3 * overlapMatrix[p][q] * alphaPQ
                 if self.nucleiPositions[p] != self.nucleiPositions[q]:
-                    simpleHamiltonian[p][q] *= (1-2/3. *alphaPQ * R_AB**2)
+                    simpleHamiltonian[p][q] *= (1 - 2/3. *alphaPQ * R_AB**2)
 
                 # Nuclear attraction part
                 # the two nuclei are located at |R_p + R_C| and |R_p - R_C| => center of orbital is in general not where the nuclei are
@@ -114,7 +114,7 @@ class HFSolver:
             newRho = self.CalculateDensity(eigenVectors)
             newE = self.CalculateTotalEnergy(eigenValues, R_AB, newRho, simpleHamiltonian)
 
-            if np.abs(np.subtract(currentE, newE)) < self.breakValue:
+            if np.abs(currentE - newE) < self.breakValue:
                 break
             rho = newRho
             currentE = newE
@@ -145,10 +145,10 @@ class HFSolver:
     #     self.qprqsMatrix = [] #Kinetic and Coulomb
     #     self.ppqMatrix = [] #Density
     #     self.fpqMatrix = [] #Fock Matrix
-    #     self.totalE = np.float64(0)
-    #     self.z = np.float64(1) # Atomic number
+    #     self.totalE = (0)
+    #     self.z = (1) # Atomic number
     #     self.totHamiltonian = []
-    #     self.pCoeff = [np.float64(0.3), np.float64(0.01), np.float64(0.7), np.float64(0.9), np.float64(0.3), np.float64(0.01), np.float64(0.7), np.float64(0.9)]
+    #     self.pCoeff = [(0.3), (0.01), (0.7), (0.9), (0.3), (0.01), (0.7), (0.9)]
     #     self.pCoeffMatrix = np.outer(self.pCoeff, self.pCoeff)
     #
     #     # Initialise matrices without C dependence
@@ -233,13 +233,13 @@ class HFSolver:
     #                     for s, alphaS in enumerate(self.base):
     #                         sumOfContributions[r][s] = self.ppqMatrix[s][r] * (2 * self.qprqsMatrix[p][r][q][s] - self.qprqsMatrix[p][r][s][q])
     #
-    #                 self.fpqMatrix = self.tpqMatrix + np.float64(0.5) * sumOfContributions
+    #                 self.fpqMatrix = self.tpqMatrix + (0.5) * sumOfContributions
     #
     # def totalEnergy(self):
-    #     Etot = np.float64(0)
+    #     Etot = (0)
     #     for p, alphaP in enumerate(self.base):
     #         for q, alphaQ in enumerate(self.base):
-    #             cksum = np.float64(0)
+    #             cksum = (0)
     #             for k, alphaK in enumerate(self.base):
     #                 ckSum += self.pCoeffMatrix[p][k] * self.pCoeffMatrix[q][k]
     #             self.ppqMatrix[p][q] = 2 * ckSum
